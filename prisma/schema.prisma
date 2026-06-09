@@ -6,6 +6,7 @@
 //   • Post — a single publication of a Clip on ONE platform
 //
 // Relationship: one Clip has many Posts (one per platform / attempt).
+// Each Post accrues PostMetric snapshots over time (a time series).
 // ─────────────────────────────────────────────────────────────
 
 generator client {
@@ -21,7 +22,8 @@ datasource db {
 }
 
 // ─────────────────────────── Clip ───────────────────────────
-// The base video. Everything starts here.
+// The base video. Everything starts here. The binary lives in Google
+// Drive — the DB only stores metadata and a reference to the file.
 model Clip {
   id          String      @id @default(cuid())
   title       String // título
@@ -33,6 +35,16 @@ model Clip {
   notes       String? // notas
   tags        String[]    @default([]) // tags
   responsible String? // responsable
+
+  // ── Google Drive (fuente de verdad; el binario nunca vive en la DB) ──
+  driveFileId     String?    @unique // ID del archivo en Google Drive
+  thumbnailUrl    String? // miniatura provista por Drive
+  mimeType        String? // p.ej. video/mp4
+  sizeBytes       Int? // tamaño del archivo (clips cortos << 2GB)
+  driveModifiedAt DateTime? // última modificación en Drive (para el sync)
+
+  // Dónde se planea publicar este clip (para saber "qué falta por subir").
+  targetPlatforms Platform[] @default([])
 
   // A clip can be published as many posts (one per platform / attempt).
   posts Post[]
@@ -61,8 +73,12 @@ model Post {
   plannedDate   DateTime? // fecha planeada
   publishedDate DateTime? // fecha publicada
   url           String? // URL de la publicación
+  externalId    String? // ID del post en la plataforma (para traer stats)
   responsible   String? // responsable
   notes         String? // notas
+
+  // Métricas capturadas a lo largo del tiempo (serie temporal).
+  metrics PostMetric[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -72,6 +88,26 @@ model Post {
   @@index([platform])
   @@index([plannedDate])
   @@map("posts")
+}
+
+// ───────────────────────── PostMetric ─────────────────────────
+// Snapshot de métricas de un Post en un momento dado (serie temporal).
+// Permite ver la evolución y comparar qué clips/formatos rinden mejor.
+model PostMetric {
+  id         String   @id @default(cuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  capturedAt DateTime @default(now()) // momento de la captura
+  views      Int      @default(0)
+  likes      Int      @default(0)
+  comments   Int      @default(0)
+  shares     Int      @default(0)
+  saves      Int      @default(0)
+  watchSec   Int? // tiempo de reproducción acumulado (segundos)
+
+  @@index([postId])
+  @@index([capturedAt])
+  @@map("post_metrics")
 }
 
 // ─────────────────────────── Enums ──────────────────────────

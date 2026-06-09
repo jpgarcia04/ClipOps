@@ -138,6 +138,7 @@ ClipOps/
 | `npm run start`     | Sirve el build de producción                 |
 | `npm run lint`      | ESLint (next/core-web-vitals)                |
 | `npm run db:push`   | Sincroniza el esquema con la base de datos   |
+| `npm run db:seed`   | Carga datos de ejemplo (EA Sports FC)        |
 | `npm run db:studio` | Abre Prisma Studio                           |
 
 ---
