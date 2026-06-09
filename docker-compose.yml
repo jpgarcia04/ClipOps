@@ -1,0 +1,48 @@
+# ClipOps — Docker Compose
+# Two services: `app` (Next.js 14) and `db` (PostgreSQL 16).
+# Designed to run as-is on a VPS:  docker compose up -d --build
+#
+# All variables fall back to safe defaults, so `docker compose up`
+# works even without a .env file.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: clipops-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-clipops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clipops_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-clipops}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - clipops_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clipops} -d ${POSTGRES_DB:-clipops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clipops-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The app talks to the `db` service over the compose network.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-clipops}:${POSTGRES_PASSWORD:-clipops_dev_password}@db:5432/${POSTGRES_DB:-clipops}?schema=public
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  clipops_pgdata:
+    name: clipops_pgdata

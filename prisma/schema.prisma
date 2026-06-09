@@ -1,0 +1,129 @@
+// ─────────────────────────────────────────────────────────────
+// ClipOps — Prisma schema
+//
+// Two top-level entities, intentionally kept separate:
+//   • Clip — the base video asset (stored in Google Drive)
+//   • Post — a single publication of a Clip on ONE platform
+//
+// Relationship: one Clip has many Posts (one per platform / attempt).
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" covers local dev; the musl target covers the Alpine
+  // container used in docker-compose / on the VPS.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── Clip ───────────────────────────
+// The base video. Everything starts here.
+model Clip {
+  id          String      @id @default(cuid())
+  title       String // título
+  driveLink   String // link de Google Drive
+  status      ClipStatus  @default(IDEA) // estado
+  type        ClipType    @default(SHORT_FORM) // tipo
+  duration    Int? // duración (en segundos)
+  quality     ClipQuality @default(HD) // calidad
+  notes       String? // notas
+  tags        String[]    @default([]) // tags
+  responsible String? // responsable
+
+  // A clip can be published as many posts (one per platform / attempt).
+  posts Post[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([responsible])
+  @@map("clips")
+}
+
+// ─────────────────────────── Post ───────────────────────────
+// A single publication of a Clip on a specific platform.
+model Post {
+  id     String @id @default(cuid())
+  clipId String
+  clip   Clip   @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  platform      Platform // plataforma
+  caption       String? // caption
+  hashtags      String[]   @default([]) // hashtags
+  audio         String? // audio / canción usada
+  status        PostStatus @default(DRAFT) // estado
+  plannedDate   DateTime? // fecha planeada
+  publishedDate DateTime? // fecha publicada
+  url           String? // URL de la publicación
+  responsible   String? // responsable
+  notes         String? // notas
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clipId])
+  @@index([status])
+  @@index([platform])
+  @@index([plannedDate])
+  @@map("posts")
+}
+
+// ─────────────────────────── Enums ──────────────────────────
+
+// Lifecycle of a base video.
+enum ClipStatus {
+  IDEA
+  RECORDING
+  EDITING
+  READY
+  PUBLISHED
+  ARCHIVED
+}
+
+// Kind of base video.
+enum ClipType {
+  SHORT_FORM
+  LONG_FORM
+  REEL
+  STORY
+  TUTORIAL
+  INTERVIEW
+  PROMO
+  OTHER
+}
+
+// Technical quality / resolution of the base video.
+enum ClipQuality {
+  SD
+  HD
+  FULL_HD
+  UHD_4K
+}
+
+// Platforms a post can target.
+enum Platform {
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  YOUTUBE_SHORTS
+  FACEBOOK
+  X
+  LINKEDIN
+  THREADS
+}
+
+// Lifecycle of a single publication.
+enum PostStatus {
+  DRAFT
+  READY
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  ARCHIVED
+}
