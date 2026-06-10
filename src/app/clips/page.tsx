@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ExternalLink, Film } from "lucide-react";
 
 import { ScanDriveButton } from "@/components/clips/scan-drive-button";
@@ -62,7 +63,12 @@ export default async function ClipsPage() {
                   <TableRow key={clip.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        {clip.title}
+                        <Link
+                          href={`/clips/${clip.id}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {clip.title}
+                        </Link>
                         {clip._count.posts === 0 ? (
                           <Badge
                             variant="outline"

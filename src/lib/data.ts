@@ -70,3 +70,16 @@ export async function getQueue(): Promise<QueueItem[]> {
     return [];
   }
 }
+
+export type ClipDetail = Prisma.ClipGetPayload<{ include: { posts: true } }>;
+
+export async function getClip(id: string): Promise<ClipDetail | null> {
+  try {
+    return await prisma.clip.findUnique({
+      where: { id },
+      include: { posts: { orderBy: { createdAt: "desc" } } },
+    });
+  } catch {
+    return null;
+  }
+}
