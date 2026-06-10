@@ -31,7 +31,7 @@ async function main() {
       duration: 32,
       quality: "FULL_HD",
       tags: ["ea fc 25", "golazo", "mbappe", "fut champions"],
-      responsible: "Juanpa",
+      responsible: "Jp",
       targetPlatforms: ["TIKTOK", "INSTAGRAM", "YOUTUBE_SHORTS"],
       notes: "El mejor clip de la semana, empujarlo fuerte.",
       posts: {
@@ -45,7 +45,7 @@ async function main() {
             publishedDate: day(-3),
             url: "https://www.tiktok.com/@clipops/video/1111",
             externalId: "tt_1111",
-            responsible: "Juanpa",
+            responsible: "Jp",
             metrics: {
               create: [
                 { capturedAt: day(-2), views: 12400, likes: 1820, comments: 96, shares: 240, saves: 310, watchSec: 18 },
@@ -62,7 +62,7 @@ async function main() {
             publishedDate: day(-3),
             url: "https://www.instagram.com/reel/2222",
             externalId: "ig_2222",
-            responsible: "Juanpa",
+            responsible: "Jp",
             metrics: {
               create: [
                 { capturedAt: day(-1), views: 8600, likes: 990, comments: 41, shares: 130, saves: 205, watchSec: 16 },
@@ -75,7 +75,7 @@ async function main() {
             caption: "El mejor gol que vas a ver hoy 🤯 #shorts",
             hashtags: ["#shorts", "#eafc25", "#golazo"],
             plannedDate: now, // hoy → aparece en Today Ops
-            responsible: "Compa",
+            responsible: "Topo",
           },
         ],
       },
@@ -93,7 +93,7 @@ async function main() {
       duration: 48,
       quality: "FULL_HD",
       tags: ["skills", "tutorial", "ea fc 25"],
-      responsible: "Compa",
+      responsible: "Topo",
       targetPlatforms: ["TIKTOK", "INSTAGRAM", "YOUTUBE_SHORTS"],
       posts: {
         create: [
@@ -104,14 +104,14 @@ async function main() {
             hashtags: ["#eafc25", "#skills", "#tutorial", "#fyp"],
             audio: "Beat trending",
             plannedDate: now, // hoy
-            responsible: "Compa",
+            responsible: "Topo",
           },
           {
             platform: "INSTAGRAM",
             status: "DRAFT",
             caption: "5 skills que cambian partidos",
             hashtags: ["#eafc25", "#reels", "#skills"],
-            responsible: "Compa",
+            responsible: "Topo",
           },
         ],
       },
@@ -129,7 +129,7 @@ async function main() {
       duration: 55,
       quality: "HD",
       tags: ["remontada", "rivals", "clutch"],
-      responsible: "Juanpa",
+      responsible: "Jp",
       targetPlatforms: ["TIKTOK", "YOUTUBE_SHORTS"],
       notes: "Cortar la celebración final, queda muy largo.",
     },
@@ -146,7 +146,7 @@ async function main() {
       duration: 18,
       quality: "FULL_HD",
       tags: ["penalti", "panenka", "final", "clutch"],
-      responsible: "Compa",
+      responsible: "Topo",
       targetPlatforms: ["TIKTOK", "INSTAGRAM", "YOUTUBE_SHORTS"],
       posts: {
         create: [
@@ -158,7 +158,7 @@ async function main() {
             publishedDate: day(-6),
             url: "https://www.tiktok.com/@clipops/video/3333",
             externalId: "tt_3333",
-            responsible: "Compa",
+            responsible: "Topo",
             metrics: {
               create: [
                 { capturedAt: day(-5), views: 45200, likes: 8300, comments: 410, shares: 1200, saves: 1500, watchSec: 15 },
@@ -174,7 +174,7 @@ async function main() {
             publishedDate: day(-6),
             url: "https://youtube.com/shorts/4444",
             externalId: "yt_4444",
-            responsible: "Compa",
+            responsible: "Topo",
             metrics: {
               create: [
                 { capturedAt: day(-1), views: 22300, likes: 1900, comments: 88, shares: 140, saves: 260, watchSec: 14 },
@@ -187,7 +187,7 @@ async function main() {
             caption: "La panenka más fría 🥶",
             hashtags: ["#eafc25", "#reels", "#penalti"],
             plannedDate: day(-2), // atrasado
-            responsible: "Juanpa",
+            responsible: "Jp",
           },
         ],
       },
@@ -205,7 +205,7 @@ async function main() {
       duration: 27,
       quality: "HD",
       tags: ["bug", "fail", "gracioso"],
-      responsible: "Juanpa",
+      responsible: "Jp",
       targetPlatforms: ["TIKTOK", "INSTAGRAM"],
       notes: "Puede explotar por lo gracioso. Buscar audio meme.",
     },

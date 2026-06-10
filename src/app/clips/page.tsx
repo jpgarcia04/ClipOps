@@ -1,9 +1,9 @@
-import { ExternalLink, Film, Plus } from "lucide-react";
+import { ExternalLink, Film } from "lucide-react";
 
+import { ScanDriveButton } from "@/components/clips/scan-drive-button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -31,19 +31,15 @@ export default async function ClipsPage() {
     <div>
       <PageHeader
         title="Clips"
-        description="Tus videos base. De aquí salen todas las publicaciones."
-        action={
-          <Button disabled>
-            <Plus className="h-4 w-4" /> Nuevo clip
-          </Button>
-        }
+        description="Tus videos base desde Google Drive. Busca los nuevos y organízalos."
+        action={<ScanDriveButton />}
       />
 
       {clips.length === 0 ? (
         <EmptyState
           icon={<Film className="h-8 w-8" />}
           title="Aún no hay clips"
-          description="Crea tu primer clip o usa `npm run db:studio` para cargar datos de prueba."
+          description="Toca «Buscar en Drive» para traer los clips nuevos como pendientes."
         />
       ) : (
         <Card>
@@ -64,7 +60,19 @@ export default async function ClipsPage() {
               <TableBody>
                 {clips.map((clip) => (
                   <TableRow key={clip.id}>
-                    <TableCell className="font-medium">{clip.title}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {clip.title}
+                        {clip._count.posts === 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] uppercase"
+                          >
+                            nuevo
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={clipStatusVariant(clip.status)}>
                         {clipStatusLabels[clip.status] ?? clip.status}
