@@ -2,8 +2,8 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 
-export type ClipWithCount = Prisma.ClipGetPayload<{
-  include: { _count: { select: { posts: true } } };
+export type ClipWithPosts = Prisma.ClipGetPayload<{
+  include: { posts: { select: { platform: true; status: true; url: true } } };
 }>;
 
 export type QueueItem = Prisma.PostGetPayload<{
@@ -48,11 +48,13 @@ export async function getDashboardCounts(): Promise<DashboardCounts> {
   }
 }
 
-export async function getClips(): Promise<ClipWithCount[]> {
+export async function getClips(): Promise<ClipWithPosts[]> {
   try {
     return await prisma.clip.findMany({
       orderBy: { updatedAt: "desc" },
-      include: { _count: { select: { posts: true } } },
+      include: {
+        posts: { select: { platform: true, status: true, url: true } },
+      },
     });
   } catch {
     return [];
