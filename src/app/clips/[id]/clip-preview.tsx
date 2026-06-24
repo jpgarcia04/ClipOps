@@ -16,14 +16,15 @@ export function ClipPreview({ clipId }: { clipId: string }) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="border-0 bg-transparent p-0 shadow-none sm:max-w-md">
+        <DialogContent className="w-auto max-w-[96vw] border-0 bg-transparent p-0 shadow-none">
           <DialogTitle className="sr-only">Previsualización del clip</DialogTitle>
           {open ? (
             <video
               src={`/api/clips/${clipId}/video`}
               controls
+              autoPlay
               playsInline
-              className="max-h-[80vh] w-full rounded-lg bg-black"
+              className="mx-auto h-[86vh] max-h-[86vh] w-auto max-w-[96vw] rounded-xl bg-black shadow-2xl ring-1 ring-white/10"
             />
           ) : null}
         </DialogContent>
