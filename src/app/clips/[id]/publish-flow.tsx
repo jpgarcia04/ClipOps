@@ -78,20 +78,37 @@ export function PublishFlow({
   captions,
   hashtags,
   platforms,
+  savedDraft,
 }: {
   clipId: string;
   driveLink: string;
   captions: string[];
   hashtags: string[];
   platforms: PlatformState[];
+  savedDraft: { caption: string | null; hashtags: string[] } | null;
 }) {
   const router = useRouter();
-  const [allCaptions, setAllCaptions] = React.useState<string[]>(captions);
-  const [selectedCaption, setSelectedCaption] = React.useState(
-    captions[0] ?? ""
+
+  // Si el clip ya tiene borrador, arrancamos con esas elecciones (y nos
+  // aseguramos de que aparezcan en las listas aunque sean personalizadas).
+  const draftCaption = savedDraft?.caption ?? null;
+  const draftTags =
+    savedDraft && savedDraft.hashtags.length > 0 ? savedDraft.hashtags : null;
+
+  const [allCaptions, setAllCaptions] = React.useState<string[]>(
+    draftCaption && !captions.includes(draftCaption)
+      ? [...captions, draftCaption]
+      : captions
   );
-  const [allTags, setAllTags] = React.useState<string[]>(hashtags);
-  const [selectedTags, setSelectedTags] = React.useState<string[]>(hashtags);
+  const [selectedCaption, setSelectedCaption] = React.useState(
+    draftCaption ?? captions[0] ?? ""
+  );
+  const [allTags, setAllTags] = React.useState<string[]>(
+    draftTags ? Array.from(new Set([...hashtags, ...draftTags])) : hashtags
+  );
+  const [selectedTags, setSelectedTags] = React.useState<string[]>(
+    draftTags ?? hashtags
+  );
 
   const [addingCaption, setAddingCaption] = React.useState(false);
   const [newCaption, setNewCaption] = React.useState("");
@@ -254,6 +271,16 @@ export function PublishFlow({
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       {/* ── Elige el copy ── */}
       <div className="space-y-6">
+        {savedDraft ? (
+          <div className="flex items-center gap-2 rounded-md border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800">
+            <Save className="h-4 w-4 shrink-0" />
+            <span>
+              Estás viendo tu <span className="font-semibold">borrador
+              guardado</span>. Edita y vuelve a guardar, o publícalo abajo.
+            </span>
+          </div>
+        ) : null}
+
         <section className="rounded-lg border bg-card p-5">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Captions</h2>

@@ -58,6 +58,14 @@ export default async function ClipDetailPage({
     };
   });
 
+  // Borrador guardado (si lo hay): restauramos esas elecciones en el editor.
+  const draftPost = clip.posts.find(
+    (p) => p.status === "DRAFT" || p.status === "READY"
+  );
+  const savedDraft = draftPost
+    ? { caption: draftPost.caption, hashtags: draftPost.hashtags }
+    : null;
+
   return (
     <div>
       <Link
@@ -116,6 +124,7 @@ export default async function ClipDetailPage({
         captions={suggestions.captions}
         hashtags={hashtags}
         platforms={platforms}
+        savedDraft={savedDraft}
       />
     </div>
   );
