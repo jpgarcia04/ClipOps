@@ -110,6 +110,16 @@ model PostMetric {
   @@map("post_metrics")
 }
 
+// Banco global de hashtags personalizados: lo que el usuario añade a mano se
+// reutiliza como sugerencia en todos los clips.
+model Hashtag {
+  id        String   @id @default(cuid())
+  tag       String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("hashtags")
+}
+
 // ─────────────────────────── Enums ──────────────────────────
 
 // Lifecycle of a base video.

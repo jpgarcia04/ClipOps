@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, ExternalLink, Loader2, Save } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Save,
+} from "lucide-react";
 
 import { CopyButton } from "@/components/copy";
 import { PlatformIcon } from "@/components/platform-icons";
@@ -56,6 +63,15 @@ const BRAND: Record<PlatformKey, { className: string; style?: React.CSSPropertie
   YOUTUBE_SHORTS: { className: "bg-[#FF0000] text-white hover:bg-[#FF0000]/90" },
 };
 
+function normalizeTag(input: string) {
+  const clean = input
+    .trim()
+    .replace(/^#+/, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+  return clean ? `#${clean}` : "";
+}
+
 export function PublishFlow({
   clipId,
   driveLink,
@@ -70,10 +86,17 @@ export function PublishFlow({
   platforms: PlatformState[];
 }) {
   const router = useRouter();
+  const [allCaptions, setAllCaptions] = React.useState<string[]>(captions);
   const [selectedCaption, setSelectedCaption] = React.useState(
     captions[0] ?? ""
   );
+  const [allTags, setAllTags] = React.useState<string[]>(hashtags);
   const [selectedTags, setSelectedTags] = React.useState<string[]>(hashtags);
+
+  const [addingCaption, setAddingCaption] = React.useState(false);
+  const [newCaption, setNewCaption] = React.useState("");
+  const [newTag, setNewTag] = React.useState("");
+
   const [flash, setFlash] = React.useState<string | null>(null);
   const [savingDraft, setSavingDraft] = React.useState(false);
   const [dialogPlatform, setDialogPlatform] =
@@ -98,7 +121,35 @@ export function PublishFlow({
       cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
     );
 
-  // Auto-guardado de redes objetivo (sin botón, al instante).
+  const addCaption = () => {
+    const c = newCaption.trim();
+    if (!c) return;
+    setAllCaptions((p) => (p.includes(c) ? p : [...p, c]));
+    setSelectedCaption(c);
+    setNewCaption("");
+    setAddingCaption(false);
+  };
+
+  // Hashtag nuevo → se añade localmente y se guarda en el banco global.
+  const addHashtag = async () => {
+    const tag = normalizeTag(newTag);
+    setNewTag("");
+    if (!tag) return;
+    setSelectedTags((p) => (p.includes(tag) ? p : [...p, tag]));
+    if (allTags.includes(tag)) return;
+    setAllTags((p) => [...p, tag]);
+    try {
+      await fetch("/api/hashtags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag }),
+      });
+      showFlash(`${tag} añadido (queda para todos los clips)`);
+    } catch {
+      /* queda añadido localmente aunque falle el guardado */
+    }
+  };
+
   const toggleTarget = async (key: PlatformKey) => {
     const p = platforms.find((x) => x.key === key);
     if (p?.status === "published") return; // publicado: bloqueado
@@ -175,7 +226,6 @@ export function PublishFlow({
     showFlash(`Copiado · abriendo ${p.label}…`);
   };
 
-  // Publicación exprés: pega URL y listo (usa el borrador/selección actual).
   const expressPublish = async (p: PlatformState, url: string) => {
     const { cap, tags } = copyTextFor(p);
     try {
@@ -206,14 +256,14 @@ export function PublishFlow({
       <div className="space-y-6">
         <section className="rounded-lg border bg-card p-5">
           <div className="mb-1 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Captions sugeridas</h2>
-            <span className="text-xs text-muted-foreground">Elige una</span>
+            <h2 className="text-sm font-semibold">Captions</h2>
+            <span className="text-xs text-muted-foreground">Elige o crea una</span>
           </div>
           <p className="mb-4 text-xs text-muted-foreground">
-            Basadas en el nombre del clip. Toca para elegir; el botón copia.
+            Sugeridas por el nombre del clip. Toca para elegir; el botón copia.
           </p>
           <div className="space-y-2.5">
-            {captions.map((c) => {
+            {allCaptions.map((c) => {
               const active = c === selectedCaption;
               return (
                 <div
@@ -246,21 +296,60 @@ export function PublishFlow({
                 </div>
               );
             })}
+
+            {addingCaption ? (
+              <div className="space-y-2 rounded-md border border-dashed p-3">
+                <Textarea
+                  value={newCaption}
+                  onChange={(e) => setNewCaption(e.target.value)}
+                  placeholder="Escribe tu caption…"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={addCaption}
+                    disabled={!newCaption.trim()}
+                  >
+                    Añadir
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAddingCaption(false);
+                      setNewCaption("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingCaption(true)}
+                className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed p-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" /> Añadir caption propia
+              </button>
+            )}
           </div>
         </section>
 
         <section className="rounded-lg border bg-card p-5">
           <div className="mb-1 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Hashtags sugeridos</h2>
+            <h2 className="text-sm font-semibold">Hashtags</h2>
             <span className="text-xs text-muted-foreground">
-              {selectedTags.length}/{hashtags.length} elegidos
+              {selectedTags.length}/{allTags.length} elegidos
             </span>
           </div>
           <p className="mb-4 text-xs text-muted-foreground">
-            Toca para activar o desactivar cada uno.
+            Toca para activar o desactivar. Los que añadas quedan para todos los
+            clips.
           </p>
           <div className="flex flex-wrap gap-2">
-            {hashtags.map((t) => {
+            {allTags.map((t) => {
               const active = selectedTags.includes(t);
               return (
                 <button
@@ -279,6 +368,37 @@ export function PublishFlow({
               );
             })}
           </div>
+
+          <div className="mt-3 flex gap-2">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                #
+              </span>
+              <Input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addHashtag();
+                  }
+                }}
+                placeholder="nuevo hashtag"
+                className="h-9 pl-7"
+              />
+            </div>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 shrink-0"
+              onClick={addHashtag}
+              disabled={!newTag.trim()}
+              title="Añadir hashtag"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
           <div className="mt-4 flex flex-wrap gap-2">
             <CopyButton
               value={`${selectedCaption}\n\n${selectedTags.join(" ")}`.trim()}
@@ -297,7 +417,6 @@ export function PublishFlow({
         <section className="rounded-lg border bg-card p-5">
           <h2 className="text-sm font-semibold">Publica en cada red</h2>
 
-          {/* Redes objetivo (auto-guardado) */}
           <div className="mt-3 rounded-md bg-muted/40 p-3">
             <p className="mb-2 text-xs font-medium text-muted-foreground">
               Redes objetivo · toca para quitar o añadir
@@ -316,7 +435,7 @@ export function PublishFlow({
                       locked ? " (publicado)" : ""
                     }`}
                     className={cn(
-                      "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border text-xs font-medium transition-colors",
+                      "flex h-9 flex-1 items-center justify-center rounded-md border transition-colors",
                       on
                         ? "border-primary bg-primary/10 text-foreground"
                         : "border-dashed text-muted-foreground opacity-60 hover:opacity-100",
@@ -436,13 +555,13 @@ export function PublishFlow({
           }}
           clipId={clipId}
           platform={dialogPlatform}
-          suggestedCaptions={captions}
+          suggestedCaptions={allCaptions}
           defaultCaption={
             dialogPlatform.status === "draft" && dialogPlatform.draftCaption
               ? dialogPlatform.draftCaption
               : selectedCaption
           }
-          suggestedHashtags={hashtags}
+          suggestedHashtags={allTags}
           defaultTags={
             dialogPlatform.status === "draft" && dialogPlatform.draftHashtags
               ? dialogPlatform.draftHashtags
@@ -527,8 +646,7 @@ function DestinationCard({
             style={BRAND[p.key].style}
             onClick={() => onAbrir(p)}
           >
-            <PlatformIcon platform={p.key} className="h-4 w-4" /> Abrir{" "}
-            {p.label}
+            <PlatformIcon platform={p.key} className="h-4 w-4" /> Abrir {p.label}
           </Button>
           <div className="flex gap-2">
             <Input

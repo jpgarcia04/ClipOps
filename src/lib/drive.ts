@@ -4,11 +4,12 @@ import { prisma } from "@/lib/db";
 // ─────────────────────────────────────────────────────────────
 // Capa de acceso a Google Drive.
 //
-// `DriveSource` abstrae "de dónde salen los archivos". Hoy usamos una
-// fuente DEMO (simulada) para poder ver el flujo completo sin credenciales.
-// Cuando conectemos Google Drive de verdad, basta con implementar
-// `GoogleDriveSource` y devolverla en `getDriveSource()`. Nada más cambia:
-// el botón, el deduplicado por driveFileId y el alta como pendiente se quedan.
+// `DriveSource` abstrae "de dónde salen los archivos":
+//   • MockDriveSource   → fuente demo (sin credenciales).
+//   • GoogleDriveSource → Drive real vía Service Account.
+// `getDriveSource()` usa la real si hay credenciales; si no, la demo.
+// En ambos casos solo guardamos METADATOS + referencia al archivo, nunca
+// el video.
 // ─────────────────────────────────────────────────────────────
 
 export type DriveFile = {
@@ -19,40 +20,90 @@ export type DriveFile = {
   mimeType?: string;
   sizeBytes?: number;
   driveModifiedAt?: Date;
+  heightPx?: number; // para derivar la calidad
 };
 
 export interface DriveSource {
-  /** Etiqueta legible de la fuente (p. ej. "demo" o "google-drive"). */
   readonly name: string;
-  /** Lista los archivos de video de la carpeta vigilada. */
   listFiles(): Promise<DriveFile[]>;
 }
 
-// Fuente simulada: imita lo que devolvería Drive. Incluye archivos que ya
-// existen en la app (para demostrar el deduplicado) y algunos nuevos.
 class MockDriveSource implements DriveSource {
   readonly name = "demo";
 
   async listFiles(): Promise<DriveFile[]> {
     return [
-      // Ya existentes (se ignoran al sincronizar).
-      { driveFileId: "1AbcGolazoMbappe", title: "Golazo de volea con Mbappé en FUT Champions", durationSec: 32 },
-      { driveFileId: "2DefSkills", title: "Top 5 skill moves para humillar rivales", durationSec: 48 },
-      { driveFileId: "3GhiRemontada", title: "Remontada imposible 0-3 a 4-3 en Division Rivals", durationSec: 55 },
-      { driveFileId: "4JklPanenka", title: "Penalti panenka para ganar la final", durationSec: 18 },
-      { driveFileId: "5MnoBug", title: "Bug hilarante: el portero salió volando", durationSec: 27 },
-      // Nuevos (aparecerán como pendientes).
-      { driveFileId: "6PqrTiroLibre", title: "Tiro libre imposible al ángulo", durationSec: 24, mimeType: "video/mp4" },
-      { driveFileId: "7StuDobleCano", title: "Doble caño y definición de lujo", durationSec: 19, mimeType: "video/mp4" },
-      { driveFileId: "8VwxAtajada", title: "Atajadón en el último minuto de la final", durationSec: 33, mimeType: "video/mp4" },
+      { driveFileId: "1AbcGolazoMbappe", title: "Golazo de volea con Mbappé en FUT Champions", durationSec: 32, heightPx: 1080 },
+      { driveFileId: "2DefSkills", title: "Top 5 skill moves para humillar rivales", durationSec: 48, heightPx: 1080 },
+      { driveFileId: "3GhiRemontada", title: "Remontada imposible 0-3 a 4-3 en Division Rivals", durationSec: 55, heightPx: 720 },
+      { driveFileId: "4JklPanenka", title: "Penalti panenka para ganar la final", durationSec: 18, heightPx: 1080 },
+      { driveFileId: "5MnoBug", title: "Bug hilarante: el portero salió volando", durationSec: 27, heightPx: 720 },
+      { driveFileId: "6PqrTiroLibre", title: "Tiro libre imposible al ángulo", durationSec: 24, heightPx: 1080, mimeType: "video/mp4" },
+      { driveFileId: "7StuDobleCano", title: "Doble caño y definición de lujo", durationSec: 19, heightPx: 1080, mimeType: "video/mp4" },
+      { driveFileId: "8VwxAtajada", title: "Atajadón en el último minuto de la final", durationSec: 33, heightPx: 2160, mimeType: "video/mp4" },
     ];
   }
 }
 
+class GoogleDriveSource implements DriveSource {
+  readonly name = "google-drive";
+
+  async listFiles(): Promise<DriveFile[]> {
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    if (!folderId || !raw) return [];
+
+    const credentials = JSON.parse(
+      Buffer.from(raw, "base64").toString("utf8")
+    );
+    const { google } = await import("googleapis");
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+    });
+    const drive = google.drive({ version: "v3", auth });
+
+    const res = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType contains 'video/' and trashed = false`,
+      fields:
+        "files(id,name,mimeType,size,thumbnailLink,webViewLink,modifiedTime,videoMediaMetadata)",
+      orderBy: "modifiedTime desc",
+      pageSize: 200,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    return (res.data.files ?? []).map((f) => ({
+      driveFileId: f.id as string,
+      title: f.name ?? "Sin nombre",
+      durationSec: f.videoMediaMetadata?.durationMillis
+        ? Math.round(Number(f.videoMediaMetadata.durationMillis) / 1000)
+        : undefined,
+      thumbnailUrl: f.thumbnailLink ?? undefined,
+      mimeType: f.mimeType ?? undefined,
+      sizeBytes: f.size ? Number(f.size) : undefined,
+      driveModifiedAt: f.modifiedTime ? new Date(f.modifiedTime) : undefined,
+      heightPx: f.videoMediaMetadata?.height ?? undefined,
+    }));
+  }
+}
+
 export function getDriveSource(): DriveSource {
-  // TODO: cuando existan credenciales de Google (env GOOGLE_*), devolver
-  // una GoogleDriveSource real en lugar de la demo.
+  if (
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON &&
+    process.env.GOOGLE_DRIVE_FOLDER_ID
+  ) {
+    return new GoogleDriveSource();
+  }
   return new MockDriveSource();
+}
+
+function qualityFromHeight(h?: number): "SD" | "HD" | "FULL_HD" | "UHD_4K" {
+  if (!h) return "HD";
+  if (h >= 2160) return "UHD_4K";
+  if (h >= 1080) return "FULL_HD";
+  if (h >= 720) return "HD";
+  return "SD";
 }
 
 export type SyncResult = {
@@ -85,9 +136,10 @@ export async function syncNewClipsFromDrive(): Promise<SyncResult> {
         title: f.title,
         driveLink: `https://drive.google.com/file/d/${f.driveFileId}/view`,
         driveFileId: f.driveFileId,
-        status: "IDEA", // pendiente de organizar/publicar
+        status: "IDEA",
         type: "SHORT_FORM",
         duration: f.durationSec ?? null,
+        quality: qualityFromHeight(f.heightPx),
         thumbnailUrl: f.thumbnailUrl ?? null,
         mimeType: f.mimeType ?? "video/mp4",
         sizeBytes: f.sizeBytes ?? null,

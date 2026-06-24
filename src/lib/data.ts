@@ -91,3 +91,13 @@ export async function getClip(id: string): Promise<ClipDetail | null> {
     return null;
   }
 }
+
+// Banco global de hashtags personalizados (se sugieren en todos los clips).
+export async function getCustomHashtags(): Promise<string[]> {
+  try {
+    const rows = await prisma.hashtag.findMany({ orderBy: { createdAt: "asc" } });
+    return rows.map((r) => r.tag);
+  } catch {
+    return [];
+  }
+}

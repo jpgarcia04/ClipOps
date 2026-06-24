@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, ExternalLink, User } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { getClip } from "@/lib/data";
+import { getClip, getCustomHashtags } from "@/lib/data";
 import {
   clipQualityLabels,
   clipStatusLabels,
@@ -26,6 +26,10 @@ export default async function ClipDetailPage({
   if (!clip) notFound();
 
   const suggestions = getSuggestions({ title: clip.title, tags: clip.tags });
+  const customHashtags = await getCustomHashtags();
+  const hashtags = Array.from(
+    new Set([...suggestions.hashtags, ...customHashtags])
+  );
 
   const postByPlatform = new Map<string, (typeof clip.posts)[number]>();
   for (const post of clip.posts) {
@@ -110,7 +114,7 @@ export default async function ClipDetailPage({
         clipId={clip.id}
         driveLink={clip.driveLink}
         captions={suggestions.captions}
-        hashtags={suggestions.hashtags}
+        hashtags={hashtags}
         platforms={platforms}
       />
     </div>
