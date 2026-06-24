@@ -36,3 +36,42 @@ export async function publishClipToPlatform(input: {
 
   return post;
 }
+
+// Guarda (o actualiza) un borrador por plataforma: caption + hashtags listos,
+// sin publicar todavía. Nunca sobreescribe algo ya publicado.
+export async function saveDraftForPlatforms(input: {
+  clipId: string;
+  platforms: Platform[];
+  caption?: string | null;
+  hashtags?: string[];
+}) {
+  const { clipId, platforms, caption, hashtags = [] } = input;
+  let saved = 0;
+
+  for (const platform of platforms) {
+    const existing = await prisma.post.findFirst({
+      where: { clipId, platform },
+    });
+    if (existing?.status === "PUBLISHED") continue; // ya publicado: no se toca
+
+    if (existing) {
+      await prisma.post.update({
+        where: { id: existing.id },
+        data: { status: "DRAFT", caption: caption ?? null, hashtags },
+      });
+    } else {
+      await prisma.post.create({
+        data: {
+          clipId,
+          platform,
+          status: "DRAFT",
+          caption: caption ?? null,
+          hashtags,
+        },
+      });
+    }
+    saved++;
+  }
+
+  return { saved };
+}

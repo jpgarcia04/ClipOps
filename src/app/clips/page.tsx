@@ -13,33 +13,41 @@ export default async function ClipsPage() {
   const clips = await getClips();
 
   const rows: ClipRowVM[] = clips.map((c) => {
-    const publishedUrl = new Map<string, string | null>();
-    for (const p of c.posts) {
-      if (p.status === "PUBLISHED") publishedUrl.set(p.platform, p.url);
-    }
     const targets = new Set<string>(c.targetPlatforms);
 
-    const platforms = PUBLISH_PLATFORMS.map((key) => ({
-      key,
-      label: PLATFORM_META[key].label,
-      state: publishedUrl.has(key)
-        ? ("published" as const)
-        : targets.has(key)
-          ? ("pending" as const)
-          : ("off" as const),
-      url: publishedUrl.get(key) ?? null,
-    }));
+    const platforms = PUBLISH_PLATFORMS.map((key) => {
+      const post = c.posts.find((p) => p.platform === key);
+      const isTarget = targets.has(key);
+      const state =
+        post?.status === "PUBLISHED"
+          ? ("published" as const)
+          : !isTarget
+            ? ("off" as const)
+            : post?.status === "DRAFT" || post?.status === "READY"
+              ? ("draft" as const)
+              : ("pending" as const);
+      return {
+        key,
+        label: PLATFORM_META[key].label,
+        state,
+        url: post?.url ?? null,
+      };
+    });
 
     const targetCount = platforms.filter((p) => p.state !== "off").length;
     const publishedCount = platforms.filter(
       (p) => p.state === "published"
     ).length;
+    const draftCount = platforms.filter((p) => p.state === "draft").length;
+
     const pubStatus =
-      publishedCount === 0
-        ? ("none" as const)
-        : publishedCount >= targetCount && targetCount > 0
-          ? ("complete" as const)
-          : ("partial" as const);
+      publishedCount > 0 && publishedCount >= targetCount
+        ? ("complete" as const)
+        : publishedCount > 0
+          ? ("partial" as const)
+          : draftCount > 0
+            ? ("draft" as const)
+            : ("none" as const);
 
     return {
       id: c.id,

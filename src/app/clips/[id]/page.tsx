@@ -11,7 +11,7 @@ import {
   clipTypeLabels,
   formatDuration,
 } from "@/lib/display";
-import { PLATFORM_META, PUBLISH_PLATFORMS, type PlatformKey } from "@/lib/platforms";
+import { PLATFORM_META, PUBLISH_PLATFORMS } from "@/lib/platforms";
 import { getSuggestions } from "@/lib/suggestions";
 import { PublishFlow } from "./publish-flow";
 
@@ -27,27 +27,32 @@ export default async function ClipDetailPage({
 
   const suggestions = getSuggestions({ title: clip.title, tags: clip.tags });
 
-  const publishedUrlByPlatform = new Map<string, string | null>();
+  const postByPlatform = new Map<string, (typeof clip.posts)[number]>();
   for (const post of clip.posts) {
-    if (post.status === "PUBLISHED") {
-      publishedUrlByPlatform.set(post.platform, post.url);
-    }
+    if (!postByPlatform.has(post.platform)) postByPlatform.set(post.platform, post);
   }
+  const targetSet = new Set<string>(clip.targetPlatforms);
 
-  const targets = clip.targetPlatforms.filter(
-    (p) => p in PLATFORM_META
-  ) as PlatformKey[];
-
-  const platforms = (targets.length > 0 ? targets : PUBLISH_PLATFORMS).map(
-    (key) => ({
+  const platforms = PUBLISH_PLATFORMS.map((key) => {
+    const post = postByPlatform.get(key);
+    const status =
+      post?.status === "PUBLISHED"
+        ? ("published" as const)
+        : post?.status === "DRAFT" || post?.status === "READY"
+          ? ("draft" as const)
+          : ("pending" as const);
+    return {
       key,
       label: PLATFORM_META[key].label,
       uploadUrl: PLATFORM_META[key].uploadUrl,
       uploadLabel: PLATFORM_META[key].uploadLabel,
-      published: publishedUrlByPlatform.has(key),
-      url: publishedUrlByPlatform.get(key) ?? null,
-    })
-  );
+      isTarget: targetSet.has(key),
+      status,
+      url: post?.url ?? null,
+      draftCaption: status === "draft" ? post?.caption ?? "" : null,
+      draftHashtags: status === "draft" ? post?.hashtags ?? [] : null,
+    };
+  });
 
   return (
     <div>

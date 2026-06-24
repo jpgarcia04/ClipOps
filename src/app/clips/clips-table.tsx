@@ -14,7 +14,7 @@ type PlatformKey = "TIKTOK" | "INSTAGRAM" | "YOUTUBE_SHORTS";
 type PlatformCell = {
   key: PlatformKey;
   label: string;
-  state: "published" | "pending" | "off";
+  state: "published" | "draft" | "pending" | "off";
   url: string | null;
 };
 
@@ -29,14 +29,15 @@ export type ClipRowVM = {
   platforms: PlatformCell[];
   publishedCount: number;
   targetCount: number;
-  pubStatus: "none" | "partial" | "complete";
+  pubStatus: "none" | "draft" | "partial" | "complete";
 };
 
 const FILTERS = [
   { key: "all", label: "Todos" },
-  { key: "pending", label: "Pendientes" },
-  { key: "progress", label: "En progreso" },
-  { key: "done", label: "Publicados" },
+  { key: "none", label: "Sin preparar" },
+  { key: "draft", label: "Borradores" },
+  { key: "partial", label: "En progreso" },
+  { key: "complete", label: "Publicados" },
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 
@@ -50,6 +51,11 @@ const BRAND_STYLE: Partial<Record<PlatformKey, React.CSSProperties>> = {
     background:
       "linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)",
   },
+};
+const ACCENT: Record<PlatformKey, string> = {
+  TIKTOK: "#111827",
+  INSTAGRAM: "#d62976",
+  YOUTUBE_SHORTS: "#FF0000",
 };
 
 function PlatformChips({ platforms }: { platforms: PlatformCell[] }) {
@@ -71,6 +77,18 @@ function PlatformChips({ platforms }: { platforms: PlatformCell[] }) {
             </span>
           );
         }
+        if (p.state === "draft") {
+          return (
+            <span
+              key={p.key}
+              title={`${p.label}: borrador listo`}
+              className="flex h-7 w-7 items-center justify-center rounded-md border-2 bg-background"
+              style={{ borderColor: ACCENT[p.key], color: ACCENT[p.key] }}
+            >
+              <PlatformIcon platform={p.key} className="h-3.5 w-3.5" />
+            </span>
+          );
+        }
         if (p.state === "pending") {
           return (
             <span
@@ -86,7 +104,7 @@ function PlatformChips({ platforms }: { platforms: PlatformCell[] }) {
           <span
             key={p.key}
             title={`${p.label}: no es objetivo`}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-dashed opacity-25"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-dashed text-muted-foreground opacity-25"
           >
             <PlatformIcon platform={p.key} className="h-3.5 w-3.5" />
           </span>
@@ -112,7 +130,17 @@ function StatusBadge({ vm }: { vm: ClipRowVM }) {
       </Badge>
     );
   }
-  return <Badge variant="secondary">Sin publicar</Badge>;
+  if (vm.pubStatus === "draft") {
+    return (
+      <Badge
+        variant="outline"
+        className="border-sky-300 bg-sky-50 text-sky-700"
+      >
+        Borrador
+      </Badge>
+    );
+  }
+  return <Badge variant="secondary">Sin preparar</Badge>;
 }
 
 function Responsible({ name }: { name: string | null }) {
@@ -138,21 +166,20 @@ export function ClipsTable({ clips }: { clips: ClipRowVM[] }) {
   const counts = React.useMemo(
     () => ({
       all: clips.length,
-      pending: clips.filter((c) => c.pubStatus === "none").length,
-      progress: clips.filter((c) => c.pubStatus === "partial").length,
-      done: clips.filter((c) => c.pubStatus === "complete").length,
+      none: clips.filter((c) => c.pubStatus === "none").length,
+      draft: clips.filter((c) => c.pubStatus === "draft").length,
+      partial: clips.filter((c) => c.pubStatus === "partial").length,
+      complete: clips.filter((c) => c.pubStatus === "complete").length,
     }),
     [clips]
   );
 
   const rows = React.useMemo(() => {
-    const order = { none: 0, partial: 1, complete: 2 };
+    const order = { none: 0, draft: 1, partial: 2, complete: 3 };
     const q = query.trim().toLowerCase();
     return clips
       .filter((c) => {
-        if (filter === "pending" && c.pubStatus !== "none") return false;
-        if (filter === "progress" && c.pubStatus !== "partial") return false;
-        if (filter === "done" && c.pubStatus !== "complete") return false;
+        if (filter !== "all" && c.pubStatus !== filter) return false;
         if (q && !c.title.toLowerCase().includes(q)) return false;
         return true;
       })

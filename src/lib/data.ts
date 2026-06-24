@@ -3,7 +3,11 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export type ClipWithPosts = Prisma.ClipGetPayload<{
-  include: { posts: { select: { platform: true; status: true; url: true } } };
+  include: {
+    posts: {
+      select: { platform: true; status: true; url: true; caption: true };
+    };
+  };
 }>;
 
 export type QueueItem = Prisma.PostGetPayload<{
@@ -53,7 +57,9 @@ export async function getClips(): Promise<ClipWithPosts[]> {
     return await prisma.clip.findMany({
       orderBy: { updatedAt: "desc" },
       include: {
-        posts: { select: { platform: true, status: true, url: true } },
+        posts: {
+          select: { platform: true, status: true, url: true, caption: true },
+        },
       },
     });
   } catch {

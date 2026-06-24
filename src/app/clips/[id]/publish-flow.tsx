@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, ExternalLink, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, Loader2, Save } from "lucide-react";
 
 import { CopyButton } from "@/components/copy";
 import { PlatformIcon } from "@/components/platform-icons";
@@ -16,24 +16,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+type PlatformKey = "TIKTOK" | "INSTAGRAM" | "YOUTUBE_SHORTS";
+type PlatformStatus = "published" | "draft" | "pending";
+
 type PlatformState = {
-  key: "TIKTOK" | "INSTAGRAM" | "YOUTUBE_SHORTS";
+  key: PlatformKey;
   label: string;
   uploadUrl: string;
   uploadLabel: string;
-  published: boolean;
+  isTarget: boolean;
+  status: PlatformStatus;
   url: string | null;
+  draftCaption: string | null;
+  draftHashtags: string[] | null;
 };
 
-const BRAND: Record<
-  PlatformState["key"],
-  { className: string; style?: React.CSSProperties }
-> = {
+const BRAND: Record<PlatformKey, { className: string; style?: React.CSSProperties }> = {
   TIKTOK: { className: "bg-black text-white hover:bg-black/90" },
   INSTAGRAM: {
     className: "text-white hover:opacity-90",
@@ -64,34 +75,130 @@ export function PublishFlow({
   );
   const [selectedTags, setSelectedTags] = React.useState<string[]>(hashtags);
   const [flash, setFlash] = React.useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = React.useState(false);
   const [dialogPlatform, setDialogPlatform] =
     React.useState<PlatformState | null>(null);
 
-  const copyText = `${selectedCaption}\n\n${selectedTags.join(" ")}`.trim();
+  const [targets, setTargets] = React.useState<Set<PlatformKey>>(
+    () =>
+      new Set(
+        platforms
+          .filter((p) => p.isTarget || p.status === "published")
+          .map((p) => p.key)
+      )
+  );
+
+  const showFlash = (m: string) => {
+    setFlash(m);
+    window.setTimeout(() => setFlash(null), 2800);
+  };
 
   const toggleTag = (t: string) =>
     setSelectedTags((cur) =>
       cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
     );
 
-  const showFlash = (m: string) => {
-    setFlash(m);
-    window.setTimeout(() => setFlash(null), 2600);
+  // Auto-guardado de redes objetivo (sin botón, al instante).
+  const toggleTarget = async (key: PlatformKey) => {
+    const p = platforms.find((x) => x.key === key);
+    if (p?.status === "published") return; // publicado: bloqueado
+
+    const next = new Set(targets);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setTargets(next);
+
+    try {
+      await fetch("/api/clips/targets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clipId, platforms: Array.from(next) }),
+      });
+      showFlash("Redes objetivo actualizadas");
+      router.refresh();
+    } catch {
+      showFlash("No se pudo guardar el cambio");
+    }
+  };
+
+  const visible = platforms.filter(
+    (p) => targets.has(p.key) || p.status === "published"
+  );
+  const draftable = visible.filter((p) => p.status !== "published");
+  const done = visible.filter((p) => p.status === "published");
+  const pending = visible.filter((p) => p.status !== "published");
+
+  const saveDraft = async (keys: PlatformKey[]) => {
+    if (keys.length === 0) return;
+    setSavingDraft(true);
+    try {
+      const res = await fetch("/api/posts/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clipId,
+          platforms: keys,
+          caption: selectedCaption,
+          hashtags: selectedTags,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const names = platforms
+        .filter((p) => keys.includes(p.key))
+        .map((p) => p.label)
+        .join(", ");
+      showFlash(`Borrador guardado en ${names}`);
+      router.refresh();
+    } catch {
+      showFlash("No se pudo guardar el borrador");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const copyTextFor = (p: PlatformState) => {
+    const cap = p.status === "draft" && p.draftCaption ? p.draftCaption : selectedCaption;
+    const tags =
+      p.status === "draft" && p.draftHashtags ? p.draftHashtags : selectedTags;
+    return { cap, tags };
   };
 
   const openPlatform = async (p: PlatformState) => {
+    const { cap, tags } = copyTextFor(p);
     try {
-      await navigator.clipboard.writeText(copyText);
+      await navigator.clipboard.writeText(`${cap}\n\n${tags.join(" ")}`.trim());
     } catch {
-      /* clipboard puede fallar sin https; no bloquea el flujo */
+      /* clipboard puede fallar sin https */
     }
     window.open(p.uploadUrl, "_blank", "noopener,noreferrer");
     window.open(driveLink, "_blank", "noopener,noreferrer");
-    showFlash(`Copiado: caption + ${selectedTags.length} hashtags · abriendo ${p.label}…`);
+    showFlash(`Copiado · abriendo ${p.label}…`);
   };
 
-  const done = platforms.filter((p) => p.published);
-  const pending = platforms.filter((p) => !p.published);
+  // Publicación exprés: pega URL y listo (usa el borrador/selección actual).
+  const expressPublish = async (p: PlatformState, url: string) => {
+    const { cap, tags } = copyTextFor(p);
+    try {
+      const res = await fetch("/api/posts/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clipId,
+          platform: p.key,
+          caption: cap,
+          hashtags: tags,
+          url,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      showFlash(`Publicado en ${p.label} ✓`);
+      router.refresh();
+      return true;
+    } catch {
+      showFlash("No se pudo publicar");
+      return false;
+    }
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -174,87 +281,126 @@ export function PublishFlow({
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <CopyButton
-              value={selectedTags.join(" ")}
-              label={`Copiar elegidos (${selectedTags.length})`}
+              value={`${selectedCaption}\n\n${selectedTags.join(" ")}`.trim()}
+              label="Copiar caption + hashtags"
             />
-            <CopyButton value={hashtags.join(" ")} label="Copiar todos" />
+            <CopyButton
+              value={selectedTags.join(" ")}
+              label={`Solo hashtags (${selectedTags.length})`}
+            />
           </div>
         </section>
       </div>
 
-      {/* ── Publica en cada red ── */}
+      {/* ── Destinos ── */}
       <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
         <section className="rounded-lg border bg-card p-5">
           <h2 className="text-sm font-semibold">Publica en cada red</h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            «Abrir» copia el copy y abre el uploader + el video en Drive.
-          </p>
 
-          <div className="space-y-3">
-            {platforms.map((p) => (
-              <div
-                key={p.key}
-                className={cn(
-                  "rounded-lg border p-3",
-                  p.published && "bg-muted/40"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+          {/* Redes objetivo (auto-guardado) */}
+          <div className="mt-3 rounded-md bg-muted/40 p-3">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
+              Redes objetivo · toca para quitar o añadir
+            </p>
+            <div className="flex gap-2">
+              {platforms.map((p) => {
+                const on = targets.has(p.key) || p.status === "published";
+                const locked = p.status === "published";
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    disabled={locked}
+                    onClick={() => toggleTarget(p.key)}
+                    title={`${p.label}: ${on ? "objetivo" : "no objetivo"}${
+                      locked ? " (publicado)" : ""
+                    }`}
+                    className={cn(
+                      "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border text-xs font-medium transition-colors",
+                      on
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-dashed text-muted-foreground opacity-60 hover:opacity-100",
+                      locked && "cursor-default"
+                    )}
+                  >
                     <PlatformIcon platform={p.key} className="h-4 w-4" />
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium leading-tight">
-                      {p.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.uploadLabel}
-                    </p>
-                  </div>
-                  {p.published ? (
-                    <Badge className="gap-1 bg-emerald-600 hover:bg-emerald-600">
-                      <Check className="h-3 w-3" /> Publicado
-                    </Badge>
-                  ) : null}
-                </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                {p.published ? (
-                  p.url ? (
-                    <a
-                      href={p.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      Ver publicación <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : null
+          {draftable.length > 0 ? (
+            <div className="mt-4 flex">
+              <Button
+                className="flex-1 rounded-r-none"
+                disabled={savingDraft}
+                onClick={() => saveDraft(draftable.map((p) => p.key))}
+              >
+                {savingDraft ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Button
-                      size="sm"
-                      className={BRAND[p.key].className}
-                      style={BRAND[p.key].style}
-                      onClick={() => openPlatform(p)}
-                    >
-                      <PlatformIcon platform={p.key} className="h-4 w-4" /> Abrir
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setDialogPlatform(p)}
-                    >
-                      Marcar publicado
-                    </Button>
-                  </div>
+                  <Save className="h-4 w-4" />
                 )}
-              </div>
-            ))}
+                Guardar borrador
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    className="rounded-l-none border-l border-primary-foreground/20 px-2"
+                    disabled={savingDraft}
+                    aria-label="Elegir redes"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Guardar borrador en…</DropdownMenuLabel>
+                  {draftable.map((p) => (
+                    <DropdownMenuItem
+                      key={p.key}
+                      onClick={() => saveDraft([p.key])}
+                    >
+                      <PlatformIcon platform={p.key} className="h-4 w-4" />
+                      {p.label}
+                    </DropdownMenuItem>
+                  ))}
+                  {draftable.length > 1 ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => saveDraft(draftable.map((p) => p.key))}
+                      >
+                        Las {draftable.length} redes
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : null}
+
+          <div className="mt-4 space-y-3">
+            {visible.length === 0 ? (
+              <p className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
+                Sin redes objetivo. Añade alguna arriba.
+              </p>
+            ) : (
+              visible.map((p) => (
+                <DestinationCard
+                  key={p.key}
+                  p={p}
+                  onAbrir={openPlatform}
+                  onExpress={expressPublish}
+                  onOpenDialog={setDialogPlatform}
+                />
+              ))
+            )}
           </div>
 
           {done.length > 0 && pending.length > 0 ? (
             <p className="mt-4 rounded-md bg-muted/60 p-2.5 text-xs text-muted-foreground">
-              ✅ Ya en {done.map((d) => d.label).join(", ")}. Repost disponible:{" "}
+              ✅ Ya en {done.map((d) => d.label).join(", ")}. Falta:{" "}
               <span className="font-medium text-foreground">
                 {pending.map((p) => p.label).join(", ")}
               </span>
@@ -291,15 +437,133 @@ export function PublishFlow({
           clipId={clipId}
           platform={dialogPlatform}
           suggestedCaptions={captions}
-          defaultCaption={selectedCaption}
+          defaultCaption={
+            dialogPlatform.status === "draft" && dialogPlatform.draftCaption
+              ? dialogPlatform.draftCaption
+              : selectedCaption
+          }
           suggestedHashtags={hashtags}
-          defaultTags={selectedTags}
+          defaultTags={
+            dialogPlatform.status === "draft" && dialogPlatform.draftHashtags
+              ? dialogPlatform.draftHashtags
+              : selectedTags
+          }
           onDone={() => {
             setDialogPlatform(null);
             router.refresh();
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function DestinationCard({
+  p,
+  onAbrir,
+  onExpress,
+  onOpenDialog,
+}: {
+  p: PlatformState;
+  onAbrir: (p: PlatformState) => void;
+  onExpress: (p: PlatformState, url: string) => Promise<boolean>;
+  onOpenDialog: (p: PlatformState) => void;
+}) {
+  const [url, setUrl] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  const submit = async () => {
+    if (!url.trim() || busy) return;
+    setBusy(true);
+    const ok = await onExpress(p, url.trim());
+    if (!ok) setBusy(false);
+  };
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3",
+        p.status === "published" && "bg-muted/40"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+          <PlatformIcon platform={p.key} className="h-4 w-4" />
+        </span>
+        <div className="flex-1">
+          <p className="text-sm font-medium leading-tight">{p.label}</p>
+          <p className="text-xs text-muted-foreground">{p.uploadLabel}</p>
+        </div>
+        {p.status === "published" ? (
+          <Badge className="gap-1 bg-emerald-600 hover:bg-emerald-600">
+            <Check className="h-3 w-3" /> Publicado
+          </Badge>
+        ) : p.status === "draft" ? (
+          <Badge
+            variant="outline"
+            className="border-sky-300 bg-sky-50 text-sky-700"
+          >
+            Borrador
+          </Badge>
+        ) : null}
+      </div>
+
+      {p.status === "published" ? (
+        p.url ? (
+          <a
+            href={p.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            Ver publicación <ExternalLink className="h-3 w-3" />
+          </a>
+        ) : null
+      ) : (
+        <div className="mt-3 space-y-2">
+          <Button
+            size="sm"
+            className={cn("w-full", BRAND[p.key].className)}
+            style={BRAND[p.key].style}
+            onClick={() => onAbrir(p)}
+          >
+            <PlatformIcon platform={p.key} className="h-4 w-4" /> Abrir{" "}
+            {p.label}
+          </Button>
+          <div className="flex gap-2">
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+              placeholder="Pega la URL publicada…"
+              className="h-9"
+            />
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 shrink-0"
+              disabled={!url.trim() || busy}
+              onClick={submit}
+              title="Marcar publicado"
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenDialog(p)}
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            ¿Usaste otra caption/hashtags? Registrar
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -325,9 +589,16 @@ function PublishDialog({
   defaultTags: string[];
   onDone: () => void;
 }) {
-  const [useOther, setUseOther] = React.useState(false);
-  const [caption, setCaption] = React.useState(defaultCaption);
-  const [otherCaption, setOtherCaption] = React.useState("");
+  const captionInList = suggestedCaptions.includes(defaultCaption);
+  const [useOther, setUseOther] = React.useState(
+    !captionInList && !!defaultCaption
+  );
+  const [caption, setCaption] = React.useState(
+    captionInList ? defaultCaption : suggestedCaptions[0] ?? ""
+  );
+  const [otherCaption, setOtherCaption] = React.useState(
+    captionInList ? "" : defaultCaption
+  );
   const [tags, setTags] = React.useState<string[]>(defaultTags);
   const [otherTags, setOtherTags] = React.useState("");
   const [url, setUrl] = React.useState("");
@@ -461,8 +732,7 @@ function PublishDialog({
 
           <div className="space-y-2">
             <Label htmlFor="post-url">
-              URL del post publicado{" "}
-              <span className="text-destructive">*</span>
+              URL del post publicado <span className="text-destructive">*</span>
             </Label>
             <Input
               id="post-url"
