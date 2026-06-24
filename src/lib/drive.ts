@@ -157,3 +157,23 @@ export async function syncNewClipsFromDrive(): Promise<SyncResult> {
     titles: nuevos.map((n) => n.title),
   };
 }
+
+// Token de acceso de la cuenta de servicio, para servir/streamear archivos de
+// Drive desde nuestro backend (independiente de la cuenta del navegador).
+export async function getDriveAccessToken(): Promise<string | null> {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  try {
+    const credentials = JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
+    const { google } = await import("googleapis");
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+    });
+    const client = await auth.getClient();
+    const res = await client.getAccessToken();
+    return res.token ?? null;
+  } catch {
+    return null;
+  }
+}

@@ -238,9 +238,15 @@ export function PublishFlow({
     } catch {
       /* clipboard puede fallar sin https */
     }
+    // Descarga el clip exacto (con el nombre de la app) para arrastrarlo al
+    // uploader — así no hay que buscarlo en Drive entre nombres genéricos.
+    const a = document.createElement("a");
+    a.href = `/api/clips/${clipId}/video?download=1`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     window.open(p.uploadUrl, "_blank", "noopener,noreferrer");
-    window.open(driveLink, "_blank", "noopener,noreferrer");
-    showFlash(`Copiado · abriendo ${p.label}…`);
+    showFlash(`Copiado + descargando clip · abriendo ${p.label}…`);
   };
 
   const expressPublish = async (p: PlatformState, url: string) => {

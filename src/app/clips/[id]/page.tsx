@@ -13,6 +13,8 @@ import {
 } from "@/lib/display";
 import { PLATFORM_META, PUBLISH_PLATFORMS } from "@/lib/platforms";
 import { getSuggestions } from "@/lib/suggestions";
+import { ClipPreview } from "./clip-preview";
+import { ClipTitle } from "./clip-title";
 import { PublishFlow } from "./publish-flow";
 
 export const dynamic = "force-dynamic";
@@ -79,9 +81,7 @@ export default async function ClipDetailPage({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-tight">
-                {clip.title}
-              </h1>
+              <ClipTitle clipId={clip.id} initialTitle={clip.title} />
               <Badge variant={clipStatusVariant(clip.status)}>
                 {clipStatusLabels[clip.status] ?? clip.status}
               </Badge>
@@ -107,14 +107,17 @@ export default async function ClipDetailPage({
             ) : null}
           </div>
 
-          <a
-            href={clip.driveLink}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
-          >
-            Abrir en Drive <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex shrink-0 items-center gap-2">
+            <ClipPreview clipId={clip.id} />
+            <a
+              href={clip.driveLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
+            >
+              Abrir en Drive <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
       </div>
 
