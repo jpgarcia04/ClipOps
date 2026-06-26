@@ -120,6 +120,16 @@ model Hashtag {
   @@map("hashtags")
 }
 
+// Los 2 creadores. Login por PIN (guardado hasheado).
+model User {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  pinHash   String
+  createdAt DateTime @default(now())
+
+  @@map("users")
+}
+
 // ─────────────────────────── Enums ──────────────────────────
 
 // Lifecycle of a base video.
