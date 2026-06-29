@@ -18,9 +18,9 @@ export async function POST(req: Request) {
 
     const cleanName = String(name ?? "").trim();
     const cleanPin = String(pin ?? "").trim();
-    if (!cleanName || cleanPin.length < 4) {
+    if (!cleanName || cleanPin.length < 6) {
       return NextResponse.json(
-        { error: "Nombre requerido y PIN de al menos 4 dígitos." },
+        { error: "Nombre requerido y PIN de al menos 6 dígitos." },
         { status: 400 }
       );
     }

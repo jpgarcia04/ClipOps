@@ -25,8 +25,8 @@ export default function RegisterPage() {
       setError("Pon tu nombre.");
       return;
     }
-    if (pin.length < 4) {
-      setError("El PIN debe tener al menos 4 dígitos.");
+    if (pin.length < 6) {
+      setError("El PIN debe tener al menos 6 dígitos.");
       return;
     }
     if (pin !== pin2) {
@@ -95,7 +95,7 @@ export default function RegisterPage() {
               inputMode="numeric"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="Mínimo 4 dígitos"
+              placeholder="Mínimo 6 dígitos"
             />
           </div>
           <div className="space-y-1.5">
