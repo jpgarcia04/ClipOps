@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,10 +9,15 @@ import { navItems } from "./nav";
 
 export function SidebarBrand() {
   return (
-    <div className="flex items-center gap-2 px-6 py-5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-bold text-primary-foreground">
-        C
-      </div>
+    <div className="flex items-center gap-2.5 px-6 py-5">
+      <Image
+        src="/logo.png"
+        alt="ClipOps"
+        width={36}
+        height={36}
+        priority
+        className="h-9 w-9 rounded-lg"
+      />
       <div className="leading-tight">
         <p className="text-sm font-semibold">ClipOps</p>
         <p className="text-xs text-muted-foreground">Content operations</p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu } from "lucide-react";
 
@@ -88,6 +89,14 @@ export function AppShell({
               {footer}
             </SheetContent>
           </Sheet>
+          <Image
+            src="/logo.png"
+            alt="ClipOps"
+            width={28}
+            height={28}
+            priority
+            className="h-7 w-7 rounded-md"
+          />
           <span className="font-semibold">ClipOps</span>
         </header>
 

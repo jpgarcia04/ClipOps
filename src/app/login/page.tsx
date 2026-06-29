@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -49,9 +50,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">
-            C
-          </div>
+          <Image
+            src="/logo.png"
+            alt="ClipOps"
+            width={64}
+            height={64}
+            priority
+            className="h-16 w-16 rounded-2xl shadow-sm"
+          />
           <h1 className="text-lg font-semibold">ClipOps</h1>
           <p className="text-sm text-muted-foreground">Entra con tu PIN</p>
         </div>
