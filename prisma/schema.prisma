@@ -49,6 +49,10 @@ model Clip {
   // A clip can be published as many posts (one per platform / attempt).
   posts Post[]
 
+  // Edición no-destructiva (recorte + textos). Solo parámetros; el binario de
+  // Drive nunca se modifica — se aplican con ffmpeg al exportar para subir.
+  edit ClipEdit?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -56,6 +60,25 @@ model Clip {
   @@index([type])
   @@index([responsible])
   @@map("clips")
+}
+
+// ───────────────────────── ClipEdit ─────────────────────────
+// Parámetros de edición no-destructiva de un Clip (1:1). El video original en
+// Drive permanece intacto; estos valores se aplican con ffmpeg al exportar.
+model ClipEdit {
+  id        String   @id @default(cuid())
+  clipId    String   @unique
+  clip      Clip     @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  trimStart Float? // segundo de inicio del recorte (null = desde el principio)
+  trimEnd   Float? // segundo de fin del recorte (null = hasta el final)
+  muted     Boolean  @default(false) // quitar el audio
+  overlays  Json? // arreglo de textos encima del video (ver src/lib/edit.ts)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clip_edits")
 }
 
 // ─────────────────────────── Post ───────────────────────────

@@ -11,8 +11,10 @@ import {
   clipTypeLabels,
   formatDuration,
 } from "@/lib/display";
+import { parseEdit } from "@/lib/edit";
 import { PLATFORM_META, PUBLISH_PLATFORMS } from "@/lib/platforms";
 import { getSuggestions } from "@/lib/suggestions";
+import { ClipEditor } from "./clip-editor";
 import { ClipPreview } from "./clip-preview";
 import { ClipTitle } from "./clip-title";
 import { PublishFlow } from "./publish-flow";
@@ -107,8 +109,14 @@ export default async function ClipDetailPage({
             ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <ClipPreview clipId={clip.id} />
+            <ClipEditor
+              clipId={clip.id}
+              title={clip.title}
+              durationSec={clip.duration}
+              initialEdit={parseEdit(clip.edit)}
+            />
             <a
               href={clip.driveLink}
               target="_blank"
