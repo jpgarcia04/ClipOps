@@ -238,10 +238,12 @@ export function PublishFlow({
     } catch {
       /* clipboard puede fallar sin https */
     }
-    // Descarga el clip exacto (con el nombre de la app) para arrastrarlo al
-    // uploader — así no hay que buscarlo en Drive entre nombres genéricos.
+    // Descarga el clip listo para subir (con el nombre de la app). Pasa por
+    // /export: si el clip tiene edición (recorte/textos) baja el MP4 ya editado;
+    // si no, redirige al original. Así no hay que saltar entre apps ni buscar
+    // el archivo en Drive entre nombres genéricos.
     const a = document.createElement("a");
-    a.href = `/api/clips/${clipId}/video?download=1`;
+    a.href = `/api/clips/${clipId}/export`;
     document.body.appendChild(a);
     a.click();
     a.remove();

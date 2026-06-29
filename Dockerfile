@@ -28,6 +28,8 @@ RUN npm run build
 FROM base AS runner
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# ffmpeg para el export del editor (recorte + textos) y fuentes para drawtext.
+RUN apk add --no-cache ffmpeg ttf-dejavu
 # node_modules is kept so the Prisma CLI is available to sync the
 # schema at container start (see docker-entrypoint.sh).
 COPY --from=builder /app/node_modules ./node_modules
