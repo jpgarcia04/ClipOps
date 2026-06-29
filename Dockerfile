@@ -18,6 +18,10 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Sube el límite de heap de Node (por defecto ~2 GB) para que el build de
+# Next no muera por "JavaScript heap out of memory" en VPS con poca RAM.
+# Requiere swap configurada en el host (ver guía de deploy).
+ENV NODE_OPTIONS=--max-old-space-size=3072
 RUN npm run build
 
 # ---- 3. Runner ----
