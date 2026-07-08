@@ -53,6 +53,10 @@ model Clip {
   // Drive nunca se modifica — se aplican con ffmpeg al exportar para subir.
   edit ClipEdit?
 
+  // Análisis con IA local (Ollama + whisper.cpp en la PC del usuario). Aquí
+  // solo llega el resultado en texto; el video jamás se procesa en el VPS.
+  analysis ClipAnalysis?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -79,6 +83,32 @@ model ClipEdit {
   updatedAt DateTime @updatedAt
 
   @@map("clip_edits")
+}
+
+// ───────────────────────── ClipAnalysis ─────────────────────────
+// Resultado del análisis con IA local (1:1 con Clip). El pipeline corre en el
+// navegador del usuario (whisper.cpp + Ollama con GPU propia); a la DB solo
+// llega el JSON final, para no re-analizar y que ambos usuarios lo vean.
+model ClipAnalysis {
+  id     String @id @default(cuid())
+  clipId String @unique
+  clip   Clip   @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  score     Int // 0-100: qué tan publicable es
+  verdict   String // "publicar" | "editar" | "descartar"
+  reasoning String // por qué (2-3 frases del modelo)
+  title     String // título/caption sugerido
+  altTitles String[] @default([]) // títulos alternativos
+  hashtags  String[] @default([])
+
+  transcript    String? // transcripción de whisper (null = clip sin voz)
+  visualSummary String? // descripciones visuales "[00:12] …" (una por línea)
+  model         String // modelo usado (p.ej. qwen3.5:4b), para comparar
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("clip_analyses")
 }
 
 // ─────────────────────────── Post ───────────────────────────

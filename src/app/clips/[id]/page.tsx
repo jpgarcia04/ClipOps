@@ -14,6 +14,7 @@ import {
 import { parseEdit } from "@/lib/edit";
 import { PLATFORM_META, PUBLISH_PLATFORMS } from "@/lib/platforms";
 import { getSuggestions } from "@/lib/suggestions";
+import { ClipAnalysis, type SavedAnalysis } from "./clip-analysis";
 import { ClipEditor } from "./clip-editor";
 import { ClipPreview } from "./clip-preview";
 import { ClipTitle } from "./clip-title";
@@ -31,9 +32,30 @@ export default async function ClipDetailPage({
 
   const suggestions = getSuggestions({ title: clip.title, tags: clip.tags });
   const customHashtags = await getCustomHashtags();
+  // Los hashtags del análisis IA (si lo hay) entran primero: son los más
+  // específicos del contenido real del clip.
   const hashtags = Array.from(
-    new Set([...suggestions.hashtags, ...customHashtags])
+    new Set([
+      ...(clip.analysis?.hashtags ?? []),
+      ...suggestions.hashtags,
+      ...customHashtags,
+    ])
   );
+
+  const savedAnalysis: SavedAnalysis | null = clip.analysis
+    ? {
+        score: clip.analysis.score,
+        verdict: clip.analysis.verdict,
+        reasoning: clip.analysis.reasoning,
+        title: clip.analysis.title,
+        altTitles: clip.analysis.altTitles,
+        hashtags: clip.analysis.hashtags,
+        transcript: clip.analysis.transcript,
+        visualSummary: clip.analysis.visualSummary,
+        model: clip.analysis.model,
+        updatedAt: clip.analysis.updatedAt.toISOString(),
+      }
+    : null;
 
   const postByPlatform = new Map<string, (typeof clip.posts)[number]>();
   for (const post of clip.posts) {
@@ -128,6 +150,13 @@ export default async function ClipDetailPage({
           </div>
         </div>
       </div>
+
+      <ClipAnalysis
+        clipId={clip.id}
+        clipTitle={clip.title}
+        durationSec={clip.duration}
+        saved={savedAnalysis}
+      />
 
       <PublishFlow
         clipId={clip.id}

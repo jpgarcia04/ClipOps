@@ -81,14 +81,18 @@ export async function getQueue(): Promise<QueueItem[]> {
 }
 
 export type ClipDetail = Prisma.ClipGetPayload<{
-  include: { posts: true; edit: true };
+  include: { posts: true; edit: true; analysis: true };
 }>;
 
 export async function getClip(id: string): Promise<ClipDetail | null> {
   try {
     return await prisma.clip.findUnique({
       where: { id },
-      include: { posts: { orderBy: { createdAt: "desc" } }, edit: true },
+      include: {
+        posts: { orderBy: { createdAt: "desc" } },
+        edit: true,
+        analysis: true,
+      },
     });
   } catch {
     return null;

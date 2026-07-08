@@ -86,6 +86,40 @@ npm run lint           # solo linter
 docker compose logs -f db   # logs de la base de datos
 ```
 
+## 5. IA local (análisis de clips) 🤖
+
+El análisis de clips (score + título + hashtags) corre **en tu PC** con tu GPU,
+no en el VPS. Necesitas dos servicios locales encendidos:
+
+```powershell
+# Enciende todo (Ollama con CORS + whisper-server) — corre esto y listo:
+powershell -ExecutionPolicy Bypass -File scripts\start-local-ai.ps1
+```
+
+Instalación en una PC nueva (una sola vez):
+
+```powershell
+# 1) Ollama + modelo de visión
+#    Instala desde https://ollama.com/download y luego:
+ollama pull qwen3.5:4b
+
+# 2) whisper.cpp (binarios oficiales, sin compilar nada)
+mkdir "$env:USERPROFILE\tools\whisper-release" ; cd "$env:USERPROFILE\tools\whisper-release"
+curl.exe -sL -o whisper.zip https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.1/whisper-bin-x64.zip
+tar -xf whisper.zip
+
+# 3) Modelo de transcripción (ggml-small, 466MB, multilenguaje)
+mkdir "$env:USERPROFILE\tools\whisper-models" ; cd "$env:USERPROFILE\tools\whisper-models"
+curl.exe -sL -o ggml-small.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+```
+
+> El repo fuente está clonado en `%USERPROFILE%\tools\whisper.cpp` por si algún
+> día queremos compilar con CUDA. Con el modelo `small` en CPU sobra para
+> clips cortos, y así la VRAM queda libre para `qwen3.5:4b`.
+
+- **El botón "Analizar clip" está deshabilitado** → falta un servicio: corre `scripts\start-local-ai.ps1`.
+- **Error de CORS con Ollama** → lo arrancaste sin `OLLAMA_ORIGINS`: cierra Ollama (icono de la bandeja) y usa el script.
+
 ## Problemas comunes
 
 - **`Can't reach database at localhost:5432`** → la DB no está prendida: `docker compose up -d db`.
